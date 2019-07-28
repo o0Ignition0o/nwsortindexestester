@@ -45,22 +45,14 @@ static void sortIndexes(const in6_addr prefixStore[],
 // mutate ifIndexes so it contains the indexes of the correctly ordered
 // prefixes and prefixLengths.
 //
-static void
-sortIndexesLinux(const std::vector<std::vector<unsigned char>> &prefixes,
-                      const std::vector<int> &prefixLengths,
-                      std::vector<int> &outIfIndexes) {
+static void sortIndexesLinux(const std::vector<std::string> &prefixes,
+                             const std::vector<int> &prefixLengths,
+                             std::vector<int> &outIfIndexes) {
   std::sort(outIfIndexes.begin(), outIfIndexes.end(),
             [&](const int &a, const int &b) {
-              for (auto i = 0; i < std::max(prefixLengths[a], prefixLengths[b]);
-                   i++) {
-                auto first_prefix = prefixes[a][i];
-                auto second_prefix = prefixes[b][i];
-                if (first_prefix != second_prefix) {
-                  return first_prefix <= second_prefix;
-                }
-              }
-              // Both prefixes are already ordered
-              return true;
+              return (prefixes[a] == prefixes[b] &&
+                      prefixLengths[a] < prefixLengths[b]) ||
+                     prefixes[a] < prefixes[b];
             });
 }
 
@@ -80,7 +72,7 @@ void testSortLinux(void) {
     // The found IPv6 addresses aren't guaranteed to always be in the same
     // order. We will sort them before we compute a sha1 hash, so that a set of
     // IPs always returns the same hash regardless of the lines order.
-    std::vector<std::vector<unsigned char>> prefixes;
+    std::vector<std::string> prefixes;
     std::vector<int> prefixLengths;
     int prefixCount = 0;
 
@@ -121,9 +113,7 @@ void testSortLinux(void) {
           id6[i] = (unsigned char)strtol(buf, nullptr, 16);
         }
 
-        unsigned char prefix[16];
-        memset(prefix, 0, sizeof(prefix));
-
+        std::string prefix(16, '\0');
         uint8_t maskit[] = {0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe};
         int bits = preflen;
         for (int i = 0; i < 16; i++) {
@@ -139,8 +129,7 @@ void testSortLinux(void) {
         // differentiate between networks with a different prefix length
         // For example: 2a00:/16 and 2a00:0/32
         ++prefixCount;
-        std::vector<unsigned char> currentPrefix(prefix, prefix + preflen / 8);
-        prefixes.push_back(currentPrefix);
+        prefixes.push_back(prefix);
         prefixLengths.push_back(preflen);
 
         found = true;
