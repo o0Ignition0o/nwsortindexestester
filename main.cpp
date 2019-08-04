@@ -1,7 +1,8 @@
 #include <iostream>
 #include <numeric>
 #include <vector>
-
+#include <algorithm>
+#include <string.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
@@ -72,9 +73,7 @@ void testSortLinux(void) {
     // The found IPv6 addresses aren't guaranteed to always be in the same
     // order. We will sort them before we compute a sha1 hash, so that a set of
     // IPs always returns the same hash regardless of the lines order.
-    std::vector<std::string> prefixes;
-    std::vector<int> prefixLengths;
-    int prefixCount = 0;
+    std::vector<std::pair<std::string, int>> prefixes;
 
     char *l = fgets(buffer, sizeof(buffer), ifs);
     // 2a001a28120000090000000000000002 02 40 00 80   eth0
@@ -128,33 +127,23 @@ void testSortLinux(void) {
         // We add the IPv6 prefix and prefix length in order to
         // differentiate between networks with a different prefix length
         // For example: 2a00:/16 and 2a00:0/32
-        ++prefixCount;
-        prefixes.push_back(prefix);
-        prefixLengths.push_back(preflen);
+        prefixes.push_back(std::make_pair(prefix, preflen));
 
         found = true;
       }
       l = fgets(buffer, sizeof(buffer), ifs);
     }
     fclose(ifs);
-
-    if (prefixCount > 0) {
-      // Get the ordered indexes so we can compute a deterministic sha1 sum.
-      int prefIndexes[prefixCount];
-      // ifIndexes = [0,1,2...prefixCount)
-      std::iota(prefIndexes, prefIndexes + prefixCount, 0);
-      std::vector<int> vIfIndexes(prefIndexes, prefIndexes + prefixCount);
       std::cout << "before" << std::endl;
-      for (auto index : vIfIndexes) {
-        std::cout << index << std::endl;
+      for (auto prefix : prefixes) {
+        std::cout << prefix.first << " and " << prefix.second << std::endl;
       }
-      sortIndexesLinux(prefixes, prefixLengths, vIfIndexes);
+    std::sort(prefixes.begin(), prefixes.end());
+
       std::cout << "after" << std::endl;
-      // Update the hash in the correct order
-      for (auto index : vIfIndexes) {
-        std::cout << index << std::endl;
+      for (auto prefix : prefixes) {
+        std::cout << prefix.first << " and " << prefix.second << std::endl;
       }
-    }
   }
 }
 
@@ -191,8 +180,8 @@ void testSortMacOs(void) {
 }
 
 int main() {
-  std::cout << "Macos : " << std::endl;
-  testSortMacOs();
+  //std::cout << "Macos : " << std::endl;
+  //testSortMacOs();
   std::cout << "Linux : " << std::endl;
   testSortLinux();
 }
